@@ -1,21 +1,13 @@
-from main.models import Admin
 from rest_framework import serializers
 from .models import *
-from django.contrib.auth.models import User
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['username', 'email', 'first_name', 'last_name']
 
-class AdminSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+class ShiftSerializer(serializers.ModelSerializer):
+    shift_type = serializers.CharField(source='get_shift_type_display')
+
+    def get_shift_type(self, obj):
+        return obj.get_shift_type_display()
 
     class Meta:
-        model = Admin
-        fields = '__all__'
-
-class ParametreSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Parametre
+        model = Shift
         fields = '__all__'

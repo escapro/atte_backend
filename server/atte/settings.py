@@ -28,11 +28,16 @@ DEBUG = True
 ALLOWED_HOSTS=[
     '127.0.0.1',
     'cyborg.127.0.0.1',
-    'http://localhost:3000'
+    'cafe.127.0.0.1',
+    'http://localhost:3000',
+    'http://cyborg.localhost:3000',
+    'http://cafe.localhost:3000'
 ]
 CORS_ORIGIN_ALLOW_ALL = False
 CORS_ORIGIN_WHITELIST = (
     'http://localhost:3000',
+    'http://cyborg.localhost:3000',
+    'http://cafe.localhost:3000'
 )
 
 # INSTALLED_APPS = [
@@ -54,7 +59,7 @@ SHARED_APPS = (
      # you must list the app where your tenant model resides in
 
     'rest_framework',
-    # 'rest_framework.authtoken',
+    'rest_framework.authtoken',
     'corsheaders',
     'djoser',
     'main',
@@ -82,15 +87,11 @@ DJOSER = {
 }
 
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
-    'DEFAULT_PARSER_CLASSES': [
-        'rest_framework.parsers.JSONParser',
-    ],
+    # 'DEFAULT_PERMISSION_CLASSES': [
+    #     'rest_framework.permissions.IsAuthenticated',
+    # ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
     ]
 }
 
@@ -104,6 +105,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_tenants.middleware.main.TenantMainMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'crm.middleware.CustomMiddleware',
 ]
 
 ROOT_URLCONF = 'atte.urls'
@@ -168,7 +170,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru-ru'
 
 TIME_ZONE = 'UTC'
 

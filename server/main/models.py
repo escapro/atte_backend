@@ -28,11 +28,11 @@ class Manager(models.Model):
     client = models.ForeignKey(Client, null=True, on_delete=models.SET_NULL)
     
     def __str__(self):
-        return "User: {}".format(self.user)
+        return "user: {}, client: {}".format(self.user, self.client)
 
 class Employee(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     client = models.ForeignKey(Client, null=True, on_delete=models.SET_NULL)
 
     def __str__(self):
-        return "User: {}".format(self.user)
+        return "user: {}, client: {}".format(self.user, self.client)
