@@ -18,7 +18,8 @@ class Domain(DomainMixin):
     pass
 
 class Admin(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    clients = models.ManyToManyField(Client, blank=True)
 
     def __str__(self):
         return "User: {}".format(self.user)

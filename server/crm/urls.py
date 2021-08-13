@@ -1,9 +1,10 @@
+from crm.views.admin import AdminView
+from crm.views.employee import EmployeeView
 from main.views.client import ClientView
 from main.views.profile import ProfileView
-from crm.views.user import Logout
+from main.views.profile import ProfileView
+from main.views.user import Logout
 from crm.views.shift import ShiftView
-from main.views.user import AdminListView
-from django.contrib import admin
 from django.urls import path
 from django.urls.conf import include
 from rest_framework.authtoken.views import obtain_auth_token
@@ -22,4 +23,6 @@ urlpatterns = [
     path('profile/', ProfileView.as_view()),
     path('client/', ClientView.as_view()),
     path('shift/', ShiftView.as_view()),
+    path('admin/', AdminView.as_view()),
+    path('employee/', EmployeeView.as_view()),
 ]

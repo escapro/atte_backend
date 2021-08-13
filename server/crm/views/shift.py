@@ -1,16 +1,18 @@
-from crm.serializers import ShiftSerializer
-from crm.models import Shift
-from main.serializers import ClientSerializer
-from main.models import Client
+from crm.utils import getSubdomain, getUserClientInfo
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import status
-
+from crm.permissions import isClientUser
+from crm.models import Shift
+from crm.serializers.shift import ShiftSerializer
+import time
 
 class ShiftView(APIView):
+
+    permission_classes = (isClientUser,)
+
     def get(self, request):
 
-        queryset = Shift.objects.all()
-        serializer_class = ShiftSerializer(queryset)
+        shifts = Shift.objects.filter(is_active=True).order_by('shift_type')
+        serializer_class = ShiftSerializer(shifts, many=True)
 
-        return Response({})
+        return Response(serializer_class.data)

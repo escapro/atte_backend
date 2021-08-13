@@ -1,3 +1,4 @@
+from atte.constans import ADMIN, EMPLOYEE, MANAGER
 from main.models import Admin, Employee, Manager
 from django.db import connection
 
@@ -9,26 +10,26 @@ def getSubdomain(request):
 def getUserClientInfo(user):
     result = {}
     result['role'] = ''
-    result['client'] = []
+    result['clients'] = []
 
     employee = Employee.objects.filter(user=user)
 
     if not employee:
-        managers = Manager.objects.filter(user=user)
-        if not managers:
+        manager = Manager.objects.filter(user=user)
+        if not manager:
             admin = Admin.objects.filter(user=user)
             if admin:
-                result['role'] = 'admin'
+                result['role'] = ADMIN
         else:
-            if managers:
-                result['role'] = 'manager'
+            if manager:
+                result['role'] = MANAGER
 
-                for manager in managers:
-                    result['client'].append(manager.client.name)
+                for m in manager:
+                    result['clients'].append(m.client.name)
     else:
-        result['client'] = None
-        employee = employee[0]
-        result['client'] = employee.client.name
-        result['role'] = 'employee'
+        result['role'] = EMPLOYEE
+
+        for e in employee:
+            result['clients'].append(e.client.name)
 
     return result
