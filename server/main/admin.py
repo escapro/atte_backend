@@ -6,9 +6,9 @@ from django_tenants.admin import TenantAdminMixin
 
 from .models import *
 
-# Unregister the provided model admin
 admin.site.unregister(User)
-# Register out own model admin, based on the default UserAdmin
+
+admin.site.register(Employee)
 
 
 @admin.register(User)
@@ -43,6 +43,10 @@ class DomainAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ('domain', 'id')
 
 
-admin.site.register(Admin)
-admin.site.register(Manager)
-admin.site.register(Employee)
+@admin.register(Admin)
+class Admins(admin.ModelAdmin):
+    filter_horizontal = ('client',)
+
+@admin.register(Manager)
+class Managers(admin.ModelAdmin):
+    filter_horizontal = ('client',)

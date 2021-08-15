@@ -1,10 +1,13 @@
+from crm.views.shift_type import ShiftTypeView
+from crm.views.shift import ShiftView
+from crm.views.expense import ExpenseView
+from crm.views.expense_category import ExpenseCategoryView
 from crm.views.admin import AdminView
 from crm.views.employee import EmployeeView
 from main.views.client import ClientView
 from main.views.profile import ProfileView
 from main.views.profile import ProfileView
 from main.views.user import Logout
-from crm.views.shift import ShiftView
 from django.urls import path
 from django.urls.conf import include
 from rest_framework.authtoken.views import obtain_auth_token
@@ -20,9 +23,12 @@ urlpatterns = [
     path('auth/token', obtain_auth_token, name='token'),
     path('auth/logout', Logout.as_view(), name='logout'),
 
-    path('profile/', ProfileView.as_view()),
-    path('client/', ClientView.as_view()),
-    path('shift/', ShiftView.as_view()),
-    path('admin/', AdminView.as_view()),
-    path('employee/', EmployeeView.as_view()),
+    path('me/', ProfileView.as_view()),
+    path('clients/', ClientView.as_view()),
+    path('shift_types/', ShiftTypeView.as_view()),
+    path('admins/', AdminView.as_view()),
+    path('employees/', EmployeeView.as_view()),
+    path('expense_categories/', ExpenseCategoryView.as_view()),
+    path('expenses/', ExpenseView.as_view()),
+    path('close_shift/', ShiftView.as_view()),
 ]

@@ -1,7 +1,7 @@
 from main.serializers.employee import EmployeeSerializer, EmployeeSerializerOnlyUser
 from main.models import Employee
 from atte.constans import EMPLOYEE
-from crm.utils import getSubdomain, getUserClientInfo
+from crm.utils.common import getSubdomain, getUserClientInfo
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from crm.permissions import isClientUser

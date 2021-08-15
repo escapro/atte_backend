@@ -1,9 +1,13 @@
-from crm.utils import getUserClientInfo
+from crm.permissions import isClientUser
+from crm.utils.common import getUserClientInfo
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
 class ProfileView(APIView):
+
+    permission_classes = (isClientUser,)
+
     def get(self, request, format=None):
 
         data = {}
@@ -15,6 +19,6 @@ class ProfileView(APIView):
         user_client_info = getUserClientInfo(request.user)
 
         data['role'] = user_client_info['role']
-        data['clients'] = user_client_info['clients']
+        data['client'] = user_client_info['client']
 
         return Response(data)

@@ -1,4 +1,4 @@
-from crm.utils import getSubdomain, getUserClientInfo
+from crm.utils.common import getSubdomain, getUserClientInfo
 from main.models import Admin, Employee, Manager
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from rest_framework.exceptions import PermissionDenied
@@ -12,7 +12,7 @@ class isClientUser(BasePermission):
         subdomain = getSubdomain(request)
         user_client_info = getUserClientInfo(request.user)
         
-        if(subdomain in user_client_info['clients']):
+        if(subdomain in user_client_info['client']):
             return True
 
         return False

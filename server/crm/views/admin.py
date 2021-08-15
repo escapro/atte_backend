@@ -1,6 +1,5 @@
 from main.serializers.admin import AdminSerializer
 from main.models import Admin
-from crm.utils import getSubdomain, getUserClientInfo
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from crm.permissions import isAdmin, isClientUser
@@ -8,7 +7,7 @@ from crm.permissions import isAdmin, isClientUser
 
 class AdminView(APIView):
 
-    # permission_classes = (isClientUser)
+    permission_classes = (isClientUser, isAdmin, )
 
     def get(self, request):
 

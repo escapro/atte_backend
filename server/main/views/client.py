@@ -1,4 +1,4 @@
-from crm.utils import getSubdomain
+from crm.utils.common import getSubdomain
 from crm.permissions import isAdminManager, isClientUser, isEmployee, isManager
 from main.serializers.client import ClientSerializer
 from main.models import Client
