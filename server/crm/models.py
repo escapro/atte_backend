@@ -1,4 +1,7 @@
 from enum import unique
+from django.db.models.base import Model
+
+from django.db.models.fields import TextField
 from main.models import Employee
 from django.db import models
 import datetime
@@ -14,10 +17,11 @@ class ShiftType(models.Model):
 
 
 class WorkingDay(models.Model):
-    date = models.DateField(null=True)
-    shifts_left = models.IntegerField(unique=True, null=False)
-    cash_income = models.IntegerField(null=True)
-    noncash_income = models.IntegerField(null=True)
+    date = models.DateField(null=True, unique=True)
+    cash_income = models.IntegerField(null=True, default=None, blank=True)
+    noncash_income = models.IntegerField(null=True, default=None, blank=True)
+    total_income = models.IntegerField(null=True, default=None, blank=True)
+    finished = models.BooleanField(default=False,)
 
     def __str__(self):
         return '{}'.format(self.date)
@@ -38,16 +42,18 @@ class Shift(models.Model):
     noncash_end = models.IntegerField()
     sales = models.IntegerField()
     cashbox_fact = models.IntegerField()
-    refund = models.IntegerField()
-    cash_income = models.IntegerField(null=True)
-    noncash_income = models.IntegerField(null=True)
-    shift_income = models.IntegerField(null=True)
+    cash_refund = models.IntegerField(default=0)
+    noncash_refund = models.IntegerField(default=0)
+    cash_income = models.IntegerField(null=True, default=0)
+    noncash_income = models.IntegerField(null=True, default=0)
+    shift_income = models.IntegerField(null=True, default=0)
     fact = models.BooleanField(default=False)
-    cash_difference = models.IntegerField(null=True)
-    noncash_difference = models.IntegerField(null=True)
+    cash_difference = models.IntegerField(null=True, default=0)
+    noncash_difference = models.IntegerField(null=True, default=0)
+    difference_report = TextField(max_length=1000, null=True, default=None, blank=True)
 
     def __str__(self):
-        return '{}, {}, {} - {}'.format(self.shift_type.name, self.employee.user.username, self.shift_start_time, self.shift_end_time)
+        return '{}, {}, {}, {} - {}'.format(self.working_day.date, self.shift_type.name, self.employee.user.username, self.shift_start_time, self.shift_end_time)
 
 
 class ExpenseCategory(models.Model):
@@ -71,4 +77,4 @@ class Expense(models.Model):
     comment = models.TextField(max_length=500, null=True, blank=True)
 
     def __str__(self):
-        return '{}, {}, {} - {}, {}, {}'.format(self.shift_type.name, self.expense_category, self.who, self.whom, self.sum, self.time)
+        return '{}, {}, {}, {} - {}, {}, {}'.format(self.working_day.date, self.shift_type.name, self.expense_category, self.who, self.whom, self.sum, self.time)

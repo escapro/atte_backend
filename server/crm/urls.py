@@ -1,6 +1,6 @@
 from crm.views.shift_type import ShiftTypeView
 from crm.views.shift import ShiftView
-from crm.views.expense import ExpenseView
+from crm.views.expense import ExpenseView, ShiftExpensesView
 from crm.views.expense_category import ExpenseCategoryView
 from crm.views.admin import AdminView
 from crm.views.employee import EmployeeView
@@ -30,5 +30,8 @@ urlpatterns = [
     path('employees/', EmployeeView.as_view()),
     path('expense_categories/', ExpenseCategoryView.as_view()),
     path('expenses/', ExpenseView.as_view()),
+    path('admins/', AdminView.as_view()),
+
+    path('shift_expenses/', ShiftExpensesView.as_view()),
     path('close_shift/', ShiftView.as_view()),
 ]
