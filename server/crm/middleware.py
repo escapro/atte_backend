@@ -1,5 +1,5 @@
-from main.views.profile import ProfileView
-from django.http import Http404
+import pytz    
+from django.utils import timezone
 
 class CustomMiddleware(object):
     def __init__(self, get_response):

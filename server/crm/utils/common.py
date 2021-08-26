@@ -40,7 +40,7 @@ def getUserClientInfo(user):
     return result
 
 
-def check_working_day():
+def check_create_working_day(create=True):
     result = {
         'success': False,
         'object': None,
@@ -48,42 +48,26 @@ def check_working_day():
     }
 
     last_working_day = WorkingDay.objects.all().order_by('date').last()
-    last_working_day_shifts = Shift.objects.filter(working_day=last_working_day)
-    shift_types = ShiftType.objects.filter(is_active=True)
+
+    def new_wd():
+        return WorkingDay.objects.create(date=datetime.date.today())
+
+    if not last_working_day:
+        if create:
+            last_working_day = new_wd()
 
     if last_working_day.finished:
         if datetime.date.today() == last_working_day.date:
             result['message'] = "Рабочий день уже завершился, пожалуйста дождитесь началы нового рабочего дня или обратитесь к руководству!"
         else:
-            new_working_day = WorkingDay.objects.create(date=datetime.date.today())
-            result['success'] = True
-            result['object'] = new_working_day
+            if create:
+                result['object'] = new_wd()
+                result['success'] = True
     else:
         result['success'] = True
         result['object'] = last_working_day
 
     return result
-
-    # def newWorkingDay():
-    #     if datetime.date.today() == last_working_day.date:
-    #         result['message'] = "Рабочий день уже завершился, пожалуйста дождитесь началы нового рабочего дня или обратитесь к руководству!"
-    #     else:
-    #         new_working_day = WorkingDay.objects.create(date=datetime.date.today())
-    #         result['success'] = True
-    #         result['object'] = new_working_day
-
-    # if last_working_day.finished:
-    #     newWorkingDay()
-    # else:
-    #     if last_working_day_shifts.count() == shift_types.count():
-    #         last_working_day.finished = True
-    #         last_working_day.save()
-    #         newWorkingDay()
-    #     else:
-    #         result['success'] = True
-    #         result['object'] = last_working_day
-
-    # return result
 
 
 def check_working_day_for_completness(working_day):

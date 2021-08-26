@@ -5,6 +5,7 @@ from django.contrib import admin
 admin.site.register(ShiftType)
 admin.site.register(ExpenseCategory)
 admin.site.register(Expense)
+admin.site.register(ShiftTraker)
 
 @admin.register(WorkingDay)
 class WorkingDay(admin.ModelAdmin):
