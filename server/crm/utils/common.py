@@ -1,13 +1,12 @@
 from django.db.models.aggregates import Sum
+from rest_framework import status
+from rest_framework.response import Response
 from atte.constans import ADMIN, CLIENT, EMPLOYEE, MANAGER
 from main.models import Admin, Employee, Manager
-from crm.models import Shift, ShiftType, WorkingDay
-import datetime
-
+from crm.models import Shift, ShiftType
 
 def getSubdomain(request):
     return request.META['HTTP_HOST'].split('.')[0]
-
 
 def getUserClientInfo(user):
     result = {}
@@ -40,36 +39,6 @@ def getUserClientInfo(user):
     return result
 
 
-def check_create_working_day(create=True):
-    result = {
-        'success': False,
-        'object': None,
-        'message': None
-    }
-
-    last_working_day = WorkingDay.objects.all().order_by('date').last()
-
-    def new_wd():
-        return WorkingDay.objects.create(date=datetime.date.today())
-
-    if not last_working_day:
-        if create:
-            last_working_day = new_wd()
-
-    if last_working_day.finished:
-        if datetime.date.today() == last_working_day.date:
-            result['message'] = "Рабочий день уже завершился, пожалуйста дождитесь началы нового рабочего дня или обратитесь к руководству!"
-        else:
-            if create:
-                result['object'] = new_wd()
-                result['success'] = True
-    else:
-        result['success'] = True
-        result['object'] = last_working_day
-
-    return result
-
-
 def check_working_day_for_completness(working_day):
     shifts = Shift.objects.filter(working_day=working_day)
     last_shiftType = ShiftType.objects.filter(is_active=True).order_by('index').last()
@@ -80,3 +49,9 @@ def check_working_day_for_completness(working_day):
         working_day.total_income = working_day.cash_income + working_day.noncash_income
         working_day.finished = True
         working_day.save()
+
+
+def debug(title: str, text: str):
+    print()
+    print("{}: {}".format(title, text))
+    print()

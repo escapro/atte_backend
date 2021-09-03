@@ -1,88 +1,97 @@
-from crm.serializers.shift import ShiftSerializer
-from crm.models import Shift, ShiftTraker, WorkingDay
-from django.forms.models import model_to_dict
-import datetime
-import math
-import pytz    
-from django.utils import timezone
+from django.db.models.query import QuerySet
+from crm.utils.working_day import get_active_working_day
+from django.contrib.auth.models import User
+from main.models import Employee
+from crm.models import Cashbox, Expense, Shift, ShiftType, WorkingDay
+from typing import Optional
+from django.db.models import Sum
+from crm.utils.common import debug
 
-def get_exist_active_shift(request):
-    result = {
-        "exist": False,
-        "active_wd": False,
-        "is_current_user": False,
-        "shift": None
-    }
 
-    last_working_day = WorkingDay.objects.all().order_by('date').last()
+def get_employee_active_shift(user: User) -> Optional[Shift]:
+    """
+    Возвращает активную смену сотрудника
+    
+    :param User user: Сотрудник на которого нужно ссылаться
+    """
 
-    if last_working_day:
-        if not last_working_day.finished:
-            result["active_wd"] = True
-            last_shift = Shift.objects.filter(working_day=last_working_day).last()
-            if last_shift:
-                if not last_shift.finished:
-                    result["exist"] = True
-                    result["shift"] = ShiftSerializer(last_shift).data
-                    if last_shift.employee.user == request.user:
-                        result["is_current_user"] = True
+    shift = None
+
+    active_wd = get_active_working_day(create=False)
+
+    if active_wd:
+        active_shift = Shift.objects.filter(working_day=active_wd, employee=Employee.objects.get(user=user), finished=False).last()
+        if active_shift:
+            shift = active_shift
+
+    return shift
+
+
+def get_active_shifts() -> Optional[QuerySet[Shift]]:
+    """
+    Возвращает все активные смены
+    """
+
+    shifts = None
+
+    active_wd = get_active_working_day(create=False)
+
+    if active_wd:
+        active_shifts = Shift.objects.filter(working_day=active_wd, finished=False)
+        if active_shifts:
+            shifts = active_shifts
+
+    return shifts
+
+
+def calculate_shift_fact(shift, data):
+    """
+    Просчитывает отчетность конца смены
+    """
+
+    result = {}
+
+    result['cash_income'] = 0
+    result['noncash_income'] = 0
+    result['shift_income'] = 0
+    result['cash_difference'] = 0
+    result['noncash_difference'] = 0
+    result['fact'] = False
+
+    # cash_income
+    result['cash_income'] = data['cash_end'] - data['cash_start']
+
+    expenses_sum = Expense.objects.filter(working_day=shift.working_day, cashbox=shift.cashbox, shift_type=shift.shift_type).aggregate(Sum('sum'))
+    if expenses_sum['sum__sum']:
+        result['cash_income'] += expenses_sum['sum__sum']
+
+    # noncash_income
+    result['noncash_income'] = data['noncash_end'] - data['noncash_start']
+
+    # shift_income
+    result['shift_income'] = result['cash_income'] + result['noncash_income']
+
+    # fact
+    sales_fact = data['sales']
+    cashboxFact_fact = data['cashbox_fact']
+    cash_refund_fact = data['cash_refund']
+    noncash_refund_fact = data['noncash_refund']
+
+    last_shift = Shift.objects.exclude(pk=shift.pk).filter(working_day=shift.working_day, cashbox=shift.cashbox).last()
+
+    if last_shift:
+        sales_fact -= last_shift.sales
+        cashboxFact_fact -= last_shift.cashbox_fact
+        cash_refund_fact -= last_shift.cash_refund
+        noncash_refund_fact -= last_shift.noncash_refund
+
+    if (result['noncash_income'] == (sales_fact - cashboxFact_fact - noncash_refund_fact )) and (result['cash_income'] == (cashboxFact_fact - cash_refund_fact)):
+            result['fact'] = True
+
+    # cash_difference
+    result['cash_difference'] = result['cash_income'] - (cashboxFact_fact - noncash_refund_fact)
+
+    # noncash_difference
+    result['noncash_difference'] = result['noncash_income'] - (sales_fact - cashboxFact_fact - noncash_refund_fact)
 
     return result
-
-def calculate_shift_trackers(shift_trackers):
-    if not shift_trackers[0]['action'] == ShiftTraker.START:
-        return False
-
-    data = {
-        "work_time": 0,
-        "break_time": 0,
-        "current_action": shift_trackers[len(shift_trackers) - 1]['action']
-    }
-
-    for index, tracker in enumerate(shift_trackers):
-        current_action = tracker['action']
-
-        # START
-        if current_action == ShiftTraker.START:
-            next_index = index + 1
-            if next_index < len(shift_trackers):
-                next_tracker = shift_trackers[next_index]
-                # START -> STOP
-                if next_tracker['action'] == ShiftTraker.STOP:
-                    data['work_time'] += math.ceil((next_tracker['datetime'] - tracker['datetime']).total_seconds())
-                # START -> PAUSE
-                elif next_tracker['action'] == ShiftTraker.PAUSE:
-                    data['work_time'] += math.ceil((next_tracker['datetime'] - tracker['datetime']).total_seconds())
-            # START -> ''
-            else:
-                data['work_time'] += math.ceil((datetime.datetime.now() - tracker['datetime'].replace(tzinfo=None)).total_seconds())
-        # PAUSE
-        elif current_action == ShiftTraker.PAUSE:
-            next_index = index + 1
-            if next_index < len(shift_trackers):
-                next_tracker = shift_trackers[next_index]
-                # PAUSE -> RESUME                                                                                                                                                                                                              -> RESUME
-                if next_tracker['action'] == ShiftTraker.RESUME:
-                    data['break_time'] += math.ceil((next_tracker['datetime'] - tracker['datetime']).total_seconds())
-                # PAUSE -> STOP
-                elif next_tracker['action'] == ShiftTraker.STOP:
-                    data['break_time'] += math.ceil((next_tracker['datetime'] - tracker['datetime']).total_seconds())
-            # PAUSE -> ''
-            else:
-                data['break_time'] += math.ceil((datetime.datetime.now() - tracker['datetime'].replace(tzinfo=None)).total_seconds())
-        # RESUME
-        elif current_action == ShiftTraker.RESUME:
-            next_index = index + 1
-            if next_index < len(shift_trackers):
-                next_tracker = shift_trackers[next_index]
-                # RESUME -> PAUSE
-                if next_tracker['action'] == ShiftTraker.PAUSE:
-                    data['work_time'] += math.ceil((next_tracker['datetime'] - tracker['datetime']).total_seconds())
-                # RESUME -> STOP
-                elif next_tracker['action'] == ShiftTraker.STOP:
-                    data['work_time'] += math.ceil((next_tracker['datetime'] - tracker['datetime']).total_seconds())
-            # RESUME -> ''
-            else:
-                data['work_time'] += math.ceil((datetime.datetime.now() - tracker['datetime'].replace(tzinfo=None)).total_seconds())
-
-    return data

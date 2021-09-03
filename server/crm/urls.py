@@ -1,3 +1,4 @@
+from crm.views.cashbox import CashboxView
 from crm.views.working_day import CloseWdView
 from crm.views.shift_type import ShiftTypeView
 from crm.views.shift import ActiveShiftView, CheckShiftView, CloseShiftView, OpenShiftView
@@ -27,6 +28,7 @@ urlpatterns = [
     path('me/', ProfileView.as_view()),
     path('clients/', ClientView.as_view()),
     path('shift_types/', ShiftTypeView.as_view()),
+    path('cashboxes/', CashboxView.as_view()),
     path('admins/', AdminView.as_view()),
     path('employees/', EmployeeView.as_view()),
     path('expense_categories/', ExpenseCategoryView.as_view()),

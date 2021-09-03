@@ -1,4 +1,4 @@
-from crm.utils.common import check_create_working_day
+from crm.utils.working_day import get_active_working_day
 from crm.serializers.expense import ExpenseCreateUpdateSerializer, ExpenseSerializer
 from crm.models import Expense, WorkingDay
 from rest_framework.response import Response
@@ -8,7 +8,6 @@ from rest_framework import status
 
 
 class ExpenseView(APIView):
-
     permission_classes = (isClientUser, isAdminManager)
 
     def get(self, request):
@@ -20,11 +19,10 @@ class ExpenseView(APIView):
 
 
 class ShiftExpensesView(APIView):
-    
     permission_classes = (isClientUser,)
 
     def get(self, request):
-        check_wd = check_create_working_day()
+        check_wd = get_active_working_day()
 
         expenses = Expense.objects.filter(working_day=check_wd['object'])
         serializer_class = ExpenseSerializer(expenses, many=True)

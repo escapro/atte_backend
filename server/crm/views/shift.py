@@ -1,8 +1,13 @@
+from django.db.models.expressions import F
+from crm.utils.shift_tracker import calculate_shift_trackers, is_permissible_traker_action
+from crm.utils.cashbox import is_cashbox_active
+from crm.utils.common import debug
+from crm.utils.datetime import get_today_datetime
+from crm.utils.working_day import get_active_working_day, get_last_working_day
 from main.models import Employee
-from crm.serializers.shift import ShiftCreateUpdateSerializer
+from crm.serializers.shift import CloseShiftSerializer, OpenShiftSerializer
 from crm.models import Shift, ShiftTraker
-from crm.utils.shift import calculate_shift_trackers, get_exist_active_shift
-from crm.utils.common import check_create_working_day
+from crm.utils.shift import calculate_shift_fact, get_employee_active_shift
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from crm.permissions import isClientUser, isEmployee
@@ -11,289 +16,170 @@ import datetime
 
 
 class CheckShiftView(APIView):
-    permission_classes = (isClientUser,)
+    permission_classes = (isClientUser, isEmployee, )
 
     def get(self, request):
-        return Response(get_exist_active_shift(request), status=status.HTTP_200_OK)
+        active_wd = get_active_working_day(create=False)
+        active_shift = get_employee_active_shift(user=request.user)
+
+        response = {
+            "active_wd": True if active_wd else False,
+            "active_shift": True if active_shift else False
+        }
+
+        return Response(response, status=status.HTTP_200_OK)
 
 
 class OpenShiftView(APIView):
-    permission_classes = (isClientUser, isEmployee)
+    permission_classes = (isClientUser, isEmployee, )
 
     def post(self, request):
-        result = {
-            'success': False,
-            'message': "Произошла ошибка"
-        }
+        last_wd = get_last_working_day()
 
-        if get_exist_active_shift(request)['exist']:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        if last_wd:
+            if last_wd.finished and last_wd.date == datetime.date.today():
+                return Response(
+                    {"error": "Рабочий день уже завершился, пожалуйста дождитесь началы нового рабочего дня или обратитесь к руководству!"},
+                    status=status.HTTP_400_BAD_REQUEST)
+ 
+        active_wd = get_active_working_day(create=True)
+        active_shift = get_employee_active_shift(request.user)
 
-        def create_shift():
-            new_data = {}
-            new_data['working_day'] = last_working_day.id
-            new_data['shift_type'] = request.data['shift_type'] if request.data['shift_type'] else None
-            new_data['employee'] = Employee.objects.get(user=request.user).id
+        if active_shift:
+            debug("active_shift", "Активная смена уже существует")
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-            serializer = ShiftCreateUpdateSerializer(data=new_data)
-            if serializer.is_valid():
-                serializer.save()
-                return serializer.data
-            else:
-                return False
+        ser_data = {}
 
-        try:
-            last_working_day = check_create_working_day(create=True)
+        ser_data['working_day'] = active_wd.id
+        ser_data['shift_type'] = request.data['shift_type'] if "shift_type" in request.data else None
+        ser_data['cashbox'] = request.data['cashbox'] if "cashbox" in request.data else None
+        ser_data['employee'] = Employee.objects.get(user=request.user).id
 
-            if last_working_day['success']:
-                last_working_day = last_working_day['object']
-            else:
-                result['message'] = last_working_day['message']
+        serializer = OpenShiftSerializer(data=ser_data)
 
-            last_shift = Shift.objects.filter(working_day=last_working_day).last()
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            new_shift = None
-            new_shift_tracker = None
+        if is_cashbox_active(cashbox_id=serializer.validated_data['cashbox']):
+            debug("is_cashbox_active", "Данная касса занята")
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-            if last_shift:
-                if last_shift.finished:
-                    new_shift = create_shift()
-                    if new_shift:
-                        result['success'] = True
-                else:
-                    result['message'] = 'Чтобы открыть новую смену, надо закрыть предыдущую'
-            else:
-                new_shift = create_shift()
-                if new_shift:
-                    result['success'] = True
+        serializer.save()
+        new_shift_data = serializer.data
+        
+        ShiftTraker.objects.create(shift=Shift.objects.get(pk=new_shift_data['id']), action=ShiftTraker.START, datetime=get_today_datetime())
 
-            if result['success']:
-                shift_trackers = ShiftTraker.objects.filter(shift=new_shift['id'])
+        return Response({"success": True}, status=status.HTTP_201_CREATED)
 
-                if not len(shift_trackers) == 0:
-                    result['success'] = False
-                else:
-                    today = datetime.datetime.fromisoformat(datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S"))
-                    new_shift_tracker = ShiftTraker.objects.create(shift=Shift.objects.get(pk=new_shift['id']), action=ShiftTraker.START, datetime=today)
-                    if new_shift_tracker:
-                        result['message'] = ''
-        except BaseException as error:
-           print(error)
-
-        return Response(result, status=status.HTTP_201_CREATED)
 
 class ActiveShiftView(APIView):
     permission_classes = (isClientUser,)
 
     def get(self, request):
-        result = {
-            'success': False,
-            'message': "",
-            'data': None
-        }
+        active_shift = get_employee_active_shift(request.user)
 
-        last_working_day = check_create_working_day(create=False)
+        if not active_shift:
+            debug("active_shift", "Нет активной смены")
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        if last_working_day['success']:
-            last_working_day = last_working_day['object']
-        else:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
-
-        last_shift = Shift.objects.filter(working_day=last_working_day).last()
-
-        if not last_shift:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
-
-        if not last_shift.employee.user == request.user:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
-
-        if last_shift.finished:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
-        
-        shift_trackers = ShiftTraker.objects.filter(shift=last_shift).order_by('datetime').values()
+        shift_trackers = ShiftTraker.objects.filter(shift=active_shift).order_by('datetime').values()
 
         if not len(shift_trackers) >= 1:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            debug("shift_trackers", "Трекеры смен не найдены")
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        tracker_current_time = calculate_shift_trackers(shift_trackers)
+        tracker_times = calculate_shift_trackers(shift_trackers)
 
-        return Response(tracker_current_time, status=status.HTTP_200_OK)
-    
+        return Response(tracker_times, status=status.HTTP_200_OK)
+
     def put(self, request):
-        result = {
-            'success': False,
-            'message': "",
-            'data': None
-        }
+        active_shift = get_employee_active_shift(request.user)
 
-        last_working_day = check_create_working_day(create=False)
+        if not active_shift:
+            debug("active_shift", "Нет активной смены")
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        if not last_working_day['success']:
-            result['message'] = last_working_day['message']
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        active_shift_tracker = ShiftTraker.objects.filter(shift=active_shift).order_by('datetime').last()
 
-        last_working_day = last_working_day['object']
+        if not active_shift_tracker:
+            debug("last_shift_tracker", "Нет активного трекера")
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        last_shift = Shift.objects.filter(working_day=last_working_day).last()
+        last_action = int(active_shift_tracker.action)
+        current_action = request.data['action'] if "action" in request.data else None
 
-        if not last_shift:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        if not is_permissible_traker_action(current_action, last_action):
+            debug("is_permissible_action", "Недопустимое значение")
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        if not last_shift.employee.user == request.user:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        if active_shift_tracker.datetime >= get_today_datetime():
+            debug("last_shift_tracker.datetime", "Недопустимое значение для времени трекера")
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        if last_shift.finished:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
-
-        last_shift_tracker = ShiftTraker.objects.filter(shift=last_shift).order_by('datetime').last()
-
-        if not last_shift_tracker:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
-
-        last_action = int(last_shift_tracker.action)
-        current_action = request.data['action']
-
-        if current_action == 1 or current_action == 4:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
-
-        if last_action == 1:
-            if current_action == 1 or current_action == 3:
-                return Response(result, status=status.HTTP_400_BAD_REQUEST)
-        elif last_action == 2:
-            if current_action == 1 or current_action == 2:
-                return Response(result, status=status.HTTP_400_BAD_REQUEST)
-        elif last_action == 3:
-            if current_action == 1 or current_action == 3:
-                return Response(result, status=status.HTTP_400_BAD_REQUEST)
-
-        today = datetime.datetime.fromisoformat(datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S"))
-
-        if last_shift_tracker.datetime >= today:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
-
-        new_shift_tracker = ShiftTraker.objects.create(shift=last_shift, action=current_action, datetime=today)
+        new_shift_tracker = ShiftTraker.objects.create(shift=active_shift, action=current_action, datetime=get_today_datetime())
 
         if not new_shift_tracker:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            debug("new_shift_tracker", "Ошибка при создании трекера времени")
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        shift_trackers = ShiftTraker.objects.filter(shift=last_shift).order_by('datetime').values()
-
-        if not len(shift_trackers) >= 1:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
-
+        shift_trackers = ShiftTraker.objects.filter(shift=active_shift).order_by('datetime').values()
         tracker_current_time = calculate_shift_trackers(shift_trackers)
 
+        if not tracker_current_time:
+            debug("tracker_current_time", "Ошибка при подсчете трекера времени")
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
         return Response(tracker_current_time, status=status.HTTP_200_OK)
+        
 
 class CloseShiftView(APIView):
     permission_classes = (isClientUser,)
 
     def post(self, request):
-        result = {
-            'success': False,
-            'message': "",
-            'data': None
-        }
+        active_shift = get_employee_active_shift(request.user)
 
-        last_working_day = check_create_working_day(create=False)
+        if not active_shift:
+            debug("active_shift", "Нет активной смены")
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        if not last_working_day['success']:
-            result['message'] = last_working_day['message']
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        ser_data = {}
 
-        last_working_day = last_working_day['object']
+        ser_data['cash_start'] = request.data['cash_start'] if "cash_start" in request.data else None
+        ser_data['cash_end'] = request.data['cash_end'] if "cash_end" in request.data else None
+        ser_data['noncash_start'] = request.data['noncash_start'] if "noncash_start" in request.data else None
+        ser_data['noncash_end'] = request.data['noncash_end'] if "noncash_end" in request.data else None
+        ser_data['sales'] = request.data['sales'] if "sales" in request.data else None
+        ser_data['cashbox_fact'] = request.data['cashbox_fact'] if "cashbox_fact" in request.data else None
+        ser_data['cash_refund'] = request.data['cash_refund'] if "cash_refund" in request.data else None
+        ser_data['noncash_refund'] = request.data['noncash_refund'] if "noncash_refund" in request.data else None
+        ser_data['difference_report'] = request.data['difference_report'] if "difference_report" in request.data else None
+        ser_data['finished'] = True
 
-        last_shift = Shift.objects.filter(working_day=last_working_day).last()
+        serializer = CloseShiftSerializer(instance=active_shift, data=ser_data)
+        if not serializer.is_valid():
+            return Response({"error_fields":serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not last_shift:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        calculated_shift_data = calculate_shift_fact(active_shift, serializer.validated_data)
 
-        if not last_shift.employee.user == request.user:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        if not calculated_shift_data['fact']:
+            if not serializer.validated_data['difference_report']:
+                result = {}
+                result['success'] = False
+                result.update(calculated_shift_data)
+                return Response(result, status=status.HTTP_200_OK)
 
-        if last_shift.finished:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        ser_data.update(calculated_shift_data)
 
-        shift_trackers = ShiftTraker.objects.filter(shift=last_shift).order_by('datetime')
+        serializer = CloseShiftSerializer(instance=active_shift, data=ser_data)
+        if not serializer.is_valid():
+            return Response({"error_fields":serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        if len(shift_trackers) < 1:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
 
-        today = datetime.datetime.fromisoformat(datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S"))
+        ShiftTraker.objects.create(shift=active_shift, action=ShiftTraker.STOP, datetime=get_today_datetime())
 
-        last_shift.finished = True
-        last_shift.save()
-
-        new_shift_tracker = ShiftTraker.objects.create(shift=last_shift, action=ShiftTraker.STOP, datetime=today)
-
+        result = {}
         result['success'] = True
-
+        result.update( )
         return Response(result, status=status.HTTP_200_OK)
-
-# class ShiftView(APIView):
-
-#     permission_classes = (isClientUser,)
-
-#     def post(self, request):
-#         check_wd = check_working_day()
-
-#         def is_valid_shift_type(shift_type_id, working_day):
-#             result = True
-
-#             shift_objects = Shift.objects.filter(working_day=working_day)
-#             current_shift_type = ShiftType.objects.get(id=shift_type_id)
-
-#             if shift_objects.filter(shift_type__id=shift_type_id).exists():
-#                 result = False
-
-#             for shift in shift_objects:
-#                 if shift.shift_type.index >= current_shift_type.index:
-#                     result = False
-
-#             return result
-
-#         def new_shift(working_day):
-#             data = request.data
-
-#             data['working_day'] = working_day.id
-
-#             try:
-#                 if not is_valid_shift_type(data['shift_type'], working_day):
-#                        return Response({"error": "Произошла ошибка"}, status=status.HTTP_400_BAD_REQUEST)
-
-#                 new_data = process_shift_data(data)
-
-#                 serializer = ShiftCreateUpdateSerializer(data=new_data)
-#                 if serializer.is_valid():
-#                     result = {
-#                         "success": False,
-#                         "data": {
-#                             "fact": serializer.validated_data['fact'],
-#                             "cash_difference": serializer.validated_data['cash_difference'],
-#                             "noncash_difference": serializer.validated_data['noncash_difference']
-#                         }
-#                     }
-
-#                     if serializer.validated_data['fact']:
-#                         serializer.validated_data['difference_report'] = ''
-#                         result['success'] = True
-#                     else:
-#                         if serializer.validated_data['difference_report']:
-#                             if serializer.validated_data['difference_report'].strip() != '':
-#                                 result['success'] = True
-
-#                     if result['success']:
-#                         serializer.save()
-#                         check_working_day_for_completness(working_day)
-
-#                     return Response(result, status=status.HTTP_200_OK)
-
-#                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-#             except BaseException as error:
-#                 return Response({"error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
-
-#         if check_wd['success']:
-#             return new_shift(check_wd['object'])
-#         else:
-#             return Response({"error": check_wd['message']}, status=status.HTTP_400_BAD_REQUEST)
