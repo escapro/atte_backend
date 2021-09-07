@@ -89,7 +89,7 @@ def calculate_shift_fact(shift, data):
             result['fact'] = True
 
     # cash_difference
-    result['cash_difference'] = result['cash_income'] - (cashboxFact_fact - noncash_refund_fact)
+    result['cash_difference'] = result['cash_income'] - (cashboxFact_fact - cash_refund_fact)
 
     # noncash_difference
     result['noncash_difference'] = result['noncash_income'] - (sales_fact - cashboxFact_fact - noncash_refund_fact)

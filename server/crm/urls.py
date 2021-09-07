@@ -1,3 +1,4 @@
+from crm.views.accounting import AccountingView
 from crm.views.cashbox import CashboxView
 from crm.views.working_day import CloseWdView
 from crm.views.shift_type import ShiftTypeView
@@ -44,4 +45,6 @@ urlpatterns = [
     path('working_day/active/close', CloseWdView.as_view()),
 
     path('shift_expenses/', ShiftExpensesView.as_view()),
+
+    path('accounting/', AccountingView.as_view()),
 ]

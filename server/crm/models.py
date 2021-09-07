@@ -1,10 +1,6 @@
-from enum import unique
-from django.db.models.base import Model
-
 from django.db.models.fields import TextField
 from main.models import Employee
 from django.db import models
-import datetime
 
 
 class ShiftType(models.Model):
@@ -94,6 +90,7 @@ class ShiftTraker(models.Model):
 
 class ExpenseCategory(models.Model):
     name = models.CharField(max_length=500, unique=True)
+    is_accounting_expense = models.BooleanField(default=True)
 
     class Meta:
         verbose_name_plural = "expense categories"

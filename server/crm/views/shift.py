@@ -39,7 +39,7 @@ class OpenShiftView(APIView):
         if last_wd:
             if last_wd.finished and last_wd.date == datetime.date.today():
                 return Response(
-                    {"error": "Рабочий день уже завершился, пожалуйста дождитесь началы нового рабочего дня или обратитесь к руководству!"},
+                    {"error_message": "Рабочий день уже завершился, пожалуйста дождитесь началы нового рабочего дня или обратитесь к руководству!"},
                     status=status.HTTP_400_BAD_REQUEST)
  
         active_wd = get_active_working_day(create=True)
