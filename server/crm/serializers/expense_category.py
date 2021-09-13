@@ -8,8 +8,13 @@ class ExpenseCategroySerializer(serializers.ModelSerializer):
         model = ExpenseCategory
         fields = '__all__'
 
-class ExpenseCategroySerializerq(serializers.ModelSerializer):
+
+class ExpenseCategroyCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ExpenseCategory
-        fields = '__all__'
+        fields = ['name', 'is_accounting_expense']
+        extra_kwargs = {
+            'name': {'required': True},
+            'is_accounting_expense': {'required': True},
+        }

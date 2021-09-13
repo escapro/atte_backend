@@ -7,6 +7,9 @@ admin.site.register(ExpenseCategory)
 admin.site.register(Expense)
 admin.site.register(ShiftTraker)
 admin.site.register(Cashbox)
+admin.site.register(Bonuses)
+admin.site.register(AdditionalExpenseCategory)
+admin.site.register(AdditionalExpense)
 
 @admin.register(WorkingDay)
 class WorkingDay(admin.ModelAdmin):

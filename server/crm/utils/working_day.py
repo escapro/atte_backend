@@ -1,3 +1,5 @@
+from crm.utils.datetime import format_with_zero
+from crm.utils.common import debug
 from typing import Optional, Tuple
 
 from django.db.models.aggregates import Sum
@@ -61,3 +63,30 @@ def calculate_wd_income(working_day: WorkingDay = None) -> Optional[dict]:
         "noncash_income": noncash_income['noncash_income__sum'],
         "total_income": cash_income['cash_income__sum'] + noncash_income['noncash_income__sum']
     }
+
+def get_wds_pagination_data(active_month):
+    result = {}
+    
+    result['months'] = []
+
+    MonthL = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль', 'Август','Сентябрь','Октябрь','Ноябрь', 'Декабрь']
+
+    working_days = WorkingDay.objects.all()
+
+    for wd in working_days.values('date__day', 'date__month', 'date__year').distinct('date__month'):
+        month_name = MonthL[wd['date__month']-1]
+
+        url_params = {
+            "from_date": "{}-{}-{}".format(wd['date__year'], format_with_zero(wd['date__month']), '01'),
+            "to_date": "{}-{}-{}".format(wd['date__year'], format_with_zero(wd['date__month']+1 if wd['date__month']<12 else 1), '01')
+        }
+        
+        if not month_name in result['months']:
+            result['months'].append({
+                "name": month_name,
+                "is_active": True if active_month.month==wd['date__month'] else False,
+                "number": wd['date__month'],
+                "url_params": url_params
+            })
+
+    return result

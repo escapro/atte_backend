@@ -1,14 +1,17 @@
+from crm.utils.datetime import get_today_datetime
+import rest_framework
+from crm.utils.working_day import get_wds_pagination_data
+from crm.utils.accounting import calculate_by_formula
 from django.db import models
 from crm.utils.common import debug
-from crm.models import Cashbox, Expense, ExpenseCategory, Shift, ShiftType, WorkingDay
+from crm.models import AdditionalExpense, Cashbox, Expense, ExpenseCategory, Shift, ShiftType, WorkingDay
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from crm.permissions import isAdminManager, isClientUser
 from rest_framework import status
-from calendar import monthrange
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 from django.db.models import Sum
-from django.db.models import F
+import calendar
 
 
 def generate_shift_data(s, shift_types):
@@ -89,18 +92,162 @@ def generate_expenses_data(expenses, expenses_category):
     return result
 
 
+def get_total_expenses_data(wds):
+    result = {}
+
+    for ec in ExpenseCategory.objects.filter(is_accounting_expense=True):
+        result[ec.name] = 0
+
+    for wd in wds:
+        expenses = Expense.objects.filter(working_day=wd, expense_category__is_accounting_expense=True)
+        for exp in expenses:
+            result[exp.expense_category.name] += exp.sum
+
+    return result
+
+def get_additional_expenses_data(params, variables):
+    result = {
+        "total": 0,
+        "data": []
+    }
+
+    date__range = [params['from_date'], params['to_date']]
+
+    additional_expenses = AdditionalExpense.objects.filter(date__range=date__range)
+
+    for expense in additional_expenses:
+        expense_name = expense.name
+
+        if not expense.name:
+            expense_name = expense.additional_expense_category.name
+
+        if expense.sum == None and expense.calculation_formula == None:
+            return None
+
+        result['data'].append({
+            "id": expense.id,
+            "name": expense_name,
+            "date": expense.date,
+            "sum": expense.sum if expense.sum else calculate_by_formula(expense.calculation_formula, variables),
+            "formula": expense.calculation_formula,
+        })
+
+    for expense in result["data"]:
+        if not expense['sum'] == None:
+            result['total'] += expense['sum']
+
+
+
+
+    # for wd in wds:
+    #     add_expenses = AdditionalExpense.objects.filter(date=wd.date)
+    #     for add_expense in add_expenses:
+    #         expense_name = ''
+
+    #         if not add_expense.name:
+    #             expense_name = add_expense.additional_expense_category.name
+    #         else:
+    #             expense_name = add_expense.name
+
+    #         if not expense_name in result["data"]:
+    #             result["data"][expense_name] = {}
+    #             result["data"][expense_name]['value'] = 0
+            
+    #         if not add_expense.sum and not add_expense.calculation_formula:
+    #             return None
+                
+    #         if not add_expense.sum:
+    #             sum = calculate_by_formula(add_expense.calculation_formula, variables)
+
+    #             result["data"][expense_name]['formula'] = add_expense.calculation_formula
+
+    #             if sum == None:
+    #                 result["data"][expense_name]['value'] = None
+    #             else:
+    #                 result["data"][expense_name]['value'] += sum
+    #         else:
+    #             result["data"][expense_name]['formula'] = ''
+    #             result["data"][expense_name]['value'] += add_expense.sum
+
+    #         result["data"][expense_name]['date'] = add_expense.date
+
+    # for key in result["data"]:
+    #     if not result["data"][key]['value'] == None:
+    #         result['total'] += result["data"][key]['value']
+
+    return result
+
+def apply_filters_by_params(object, params):
+    wds = object
+
+    date__range = [params['from_date'], params['to_date']]
+
+    wds = wds.filter(date__range=date__range)
+
+    return wds
+
+def add_non_work_days_data(data, params):
+    result = data
+
+    month = params.get('date__month', None)
+    year = params.get('date__year', None)
+
+    days_range = calendar.monthrange(int(year), int(month))[1]
+
+    for day in range(days_range):
+        day+=1
+        is_day_exist = False
+        for d in data:
+            if day == d['date']['day']:
+                is_day_exist = True
+        
+        if not is_day_exist:
+            new_data = {}
+            
+            date = datetime(int(year), int(month), int(day))
+
+            DayL = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']
+
+            new_data['is_work_day'] = False
+            new_data['date'] = {}
+            new_data['date']['week'] = DayL[date.weekday()]
+            new_data['date']['day'] = date.day
+            new_data['date']['month'] = date.month
+            new_data['date']['year'] = date.year
+        else:
+            continue
+
+        result.append(new_data)
+    
+    result = sorted(result, key=lambda k: k['date']['day']) 
+
+    return result
+
 class AccountingView(APIView):
     permission_classes = (isClientUser, isAdminManager, )
 
     def get(self, request):
+        if not request.GET.get('from_date'):
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        params = {
+            "from_date": request.GET.get('from_date'),
+            "to_date": request.GET.get('to_date', datetime.today().strftime('%Y-%m-%d'))
+        }
 
         result = {}
         
+        result['options'] = {}
         result['headers'] = {}
         result['detail'] = []
         result['summary'] = {}
+        result['expenses'] = {}
 
-        working_days = WorkingDay.objects.filter(finished=True).order_by('date')
+        working_days = WorkingDay.objects.filter(finished=True)
+        working_days = apply_filters_by_params(working_days, params)
+        # date__range=["2011-01-01", "2011-01-31"]
+
+        result['options']['pagination'] = get_wds_pagination_data(datetime.strptime(params['from_date'], '%Y-%m-%d'))
 
         result['headers']['cashboxes'] = Cashbox.objects.all().values()
         result['headers']['shift_types'] = ShiftType.objects.all().values()
@@ -117,12 +264,11 @@ class AccountingView(APIView):
         cashboxes = Cashbox.objects.all()
         shift_types = ShiftType.objects.all()
 
+        # Sample.objects.filter(date__range=["2011-01-01", "2011-01-31"])
         while start_date <= end_date:
             wd = WorkingDay.objects.filter(date=start_date)
 
-            if not wd:
-                result['detail'].append(None)
-            else:
+            if wd:
                 wd = wd[0]
 
                 wd_shifts = Shift.objects.filter(working_day=wd)
@@ -134,6 +280,9 @@ class AccountingView(APIView):
                 data = {}
 
                 DayL = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']
+
+                #is_work_day
+                data['is_work_day'] = True
 
                 # date
                 data['date'] = {}
@@ -198,16 +347,20 @@ class AccountingView(APIView):
                     data['cashboxes'][cashbox.id]['cash_refund'] = cashbox_cash_refund_sum
                     data['cashboxes'][cashbox.id]['total_expenses'] = cashbox_total_expenses_sum
 
-                    #expenses
+                    #cashbox expenses
                     data['cashboxes'][cashbox.id]['expenses'] = generate_expenses_data(cashbox_expenses, expenses_category)
 
-                    #expenses
                     data['cashboxes'][cashbox.id]['shifts'] = generate_shift_data(cashbox_shifts, shift_types)
 
                 result['detail'].append(data)
 
             start_date += timedelta(days=1)
+        
+        # result['detail'] = add_non_work_days_data(result['detail'], params)
 
-            result['summary']['net_profit'] = result['summary']['income'] - result['summary']['expense']
+        result['summary']['net_profit'] = result['summary']['income'] - result['summary']['expense']
+        result['expenses']['shift'] = get_total_expenses_data(working_days)
+        result['expenses']['additional'] = get_additional_expenses_data(params, result['summary'])
+        result['summary']['expense'] += result['expenses']['additional']['total']
 
         return Response(result, status=status.HTTP_200_OK)

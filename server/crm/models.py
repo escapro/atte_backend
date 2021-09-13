@@ -6,6 +6,7 @@ from django.db import models
 class ShiftType(models.Model):
     name = models.CharField(max_length=250, unique=True)
     index = models.IntegerField(unique=True, null=True)
+    hourly_rate = models.IntegerField(unique=False, null=False, blank=False)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -112,3 +113,39 @@ class Expense(models.Model):
 
     def __str__(self):
         return '{}, {}, {}, {} - {}, {}, {}'.format(self.working_day.date, self.shift_type.name, self.expense_category, self.who, self.whom, self.sum, self.time)
+
+
+class Bonuses(models.Model):
+    revenue_to = models.BigIntegerField(null=False)
+    rate = models.IntegerField(unique=False)
+
+    def __str__(self):
+        return '{} - {}%'.format(self.revenue_to, self.rate)
+
+class AdditionalExpenseCategory(models.Model):
+    name = models.CharField(max_length=500, unique=True)
+
+    class Meta:
+        verbose_name_plural = "Additional expense categories"
+
+    def __str__(self):
+        return self.name
+
+
+class AdditionalExpense(models.Model):
+    date = models.DateField(null=True)
+    additional_expense_category = models.ForeignKey(AdditionalExpenseCategory, null=True, default=None, on_delete=models.CASCADE, blank=True)
+    name = models.TextField(max_length=500, null=True, blank=True)
+    calculation_formula = models.TextField(null=True, default=None, blank=True)
+    sum = models.IntegerField(null=True, blank=True)
+    created_at_time = models.TimeField(auto_created=True, auto_now_add=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if self.additional_expense_category and self.name:
+            raise ValueError("Недопустимое одновременно значение для name и additional_expense_category")
+        if self.calculation_formula and self.sum:
+            raise ValueError("Недопустимое одновременно значение для calculation_formula и sum")
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return '{}'.format(self.date)

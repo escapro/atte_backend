@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from main.serializers.user import UserSerializer
 from main.serializers.client import ClientSerializer
 from main.models import Employee
@@ -19,3 +20,14 @@ class EmployeeSerializerOnlyUser(serializers.ModelSerializer):
     class Meta:
         model = Employee
         fields = ['id', 'user']
+
+
+class EmployeeCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Employee
+        fields = ('user', 'client')
+        extra_kwargs = {
+            'user': {'required': True},
+            'client': {'required': True}
+        }
