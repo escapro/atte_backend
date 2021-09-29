@@ -88,7 +88,6 @@ class ShiftTraker(models.Model):
         return '{}, {}, {}'.format(self.shift, self.get_action_display(), self.datetime)
 
 
-
 class ExpenseCategory(models.Model):
     name = models.CharField(max_length=500, unique=True)
     is_accounting_expense = models.BooleanField(default=True)

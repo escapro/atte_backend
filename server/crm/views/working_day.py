@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from crm.permissions import isClientUser
 from rest_framework import status
+from crm.utils.common import debug
 
 
 class CloseWdView(APIView):
@@ -14,9 +15,12 @@ class CloseWdView(APIView):
         active_shifts = get_active_shifts()
 
         if active_shifts:
-            return Response({"error_message": "Сначала нужно закрыть активную смену"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error_message": "Сначала нужно закрыть активную смену"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         wd_income = calculate_wd_income()
+
+        debug('wd_income', wd_income)
 
         active_wd.finished = True
         active_wd.cash_income = wd_income['cash_income']

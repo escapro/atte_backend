@@ -1,0 +1,2 @@
+# PROD, DEV, TEST
+ENV_MODE = 'DEV'

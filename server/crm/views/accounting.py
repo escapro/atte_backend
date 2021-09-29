@@ -71,6 +71,7 @@ def generate_shift_data(s, shift_types):
 
     return result
 
+
 def generate_expenses_data(expenses, expenses_category):
     result = []
 
@@ -104,6 +105,7 @@ def get_total_expenses_data(wds):
             result[exp.expense_category.name] += exp.sum
 
     return result
+
 
 def get_additional_expenses_data(params, variables):
     result = {
@@ -152,10 +154,10 @@ def get_additional_expenses_data(params, variables):
     #         if not expense_name in result["data"]:
     #             result["data"][expense_name] = {}
     #             result["data"][expense_name]['value'] = 0
-            
+
     #         if not add_expense.sum and not add_expense.calculation_formula:
     #             return None
-                
+
     #         if not add_expense.sum:
     #             sum = calculate_by_formula(add_expense.calculation_formula, variables)
 
@@ -200,10 +202,10 @@ def add_non_work_days_data(data, params):
         for d in data:
             if day == d['date']['day']:
                 is_day_exist = True
-        
+
         if not is_day_exist:
             new_data = {}
-            
+
             date = datetime(int(year), int(month), int(day))
 
             DayL = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']
@@ -218,10 +220,11 @@ def add_non_work_days_data(data, params):
             continue
 
         result.append(new_data)
-    
-    result = sorted(result, key=lambda k: k['date']['day']) 
+
+    result = sorted(result, key=lambda k: k['date']['day'])
 
     return result
+
 
 class AccountingView(APIView):
     permission_classes = (isClientUser, isAdminManager, )
@@ -236,7 +239,7 @@ class AccountingView(APIView):
         }
 
         result = {}
-        
+
         result['options'] = {}
         result['headers'] = {}
         result['detail'] = []
@@ -275,7 +278,10 @@ class AccountingView(APIView):
                 wd_expenses = Expense.objects.filter(working_day=wd, expense_category__is_accounting_expense=True)
                 expenses_category = ExpenseCategory.objects.all()
 
-                result['summary']['expense'] += wd_expenses.values('sum').aggregate(sum=Sum('sum'))['sum']
+                wd_expenses_sum = wd_expenses.values('sum').aggregate(sum=Sum('sum'))['sum']
+
+                if wd_expenses_sum is not None:
+                    result['summary']['expense'] += wd_expenses_sum
 
                 data = {}
 
@@ -304,7 +310,9 @@ class AccountingView(APIView):
                 data['cash_income'] = wd.cash_income
 
                 # total_expenses
-                data['total_expenses'] = wd_expenses.values('sum').aggregate(sum=Sum('sum'))['sum']
+                data['total_expenses'] = 0
+                if wd_expenses_sum is not None:
+                    data['total_expenses'] += wd_expenses_sum
 
                 # expenses
                 data['expenses'] = generate_expenses_data(wd_expenses, expenses_category)
@@ -337,7 +345,7 @@ class AccountingView(APIView):
                         cashbox_total_income_sum = cashbox_total_income
                     if cashbox_cash_refund:
                         cashbox_cash_refund_sum = cashbox_cash_refund
-                    
+
                     data['cashboxes'][cashbox.id] = {}
                     data['cashboxes'][cashbox.id]['id'] = cashbox.id
                     data['cashboxes'][cashbox.id]['name'] = cashbox.name
@@ -355,12 +363,13 @@ class AccountingView(APIView):
                 result['detail'].append(data)
 
             start_date += timedelta(days=1)
-        
+
         # result['detail'] = add_non_work_days_data(result['detail'], params)
 
-        result['summary']['net_profit'] = result['summary']['income'] - result['summary']['expense']
         result['expenses']['shift'] = get_total_expenses_data(working_days)
         result['expenses']['additional'] = get_additional_expenses_data(params, result['summary'])
+
         result['summary']['expense'] += result['expenses']['additional']['total']
+        result['summary']['net_profit'] = result['summary']['income'] - result['summary']['expense']
 
         return Response(result, status=status.HTTP_200_OK)

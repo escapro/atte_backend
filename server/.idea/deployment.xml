@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" serverName="development" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="development">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/server" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+          <excludedPaths>
+            <excludedPath local="true" path="$PROJECT_DIR$/atte/local_settings.py" />
+            <excludedPath path="/server/atte/prod_settings.py" />
+            <excludedPath local="true" path="$PROJECT_DIR$/atte/env_constants.py" />
+            <excludedPath path="/server/atte/env_constants.py" />
+            <excludedPath path="/env" />
+            <excludedPath path="/requirements.txt" />
+            <excludedPath path="/server/atte/__pycache__" />
+            <excludedPath path="/server/bin" />
+            <excludedPath path="/server/crm/__pycache__" />
+            <excludedPath path="/server/crm/migrations" />
+            <excludedPath local="true" path="$PROJECT_DIR$/.idea" />
+            <excludedPath local="true" path="$PROJECT_DIR$/crm/migrations" />
+            <excludedPath local="true" path="$PROJECT_DIR$/main/migrations" />
+            <excludedPath path="/server/atte/gunicorn_config.py" />
+            <excludedPath path="/server/static" />
+            <excludedPath local="true" path="$PROJECT_DIR$/static" />
+          </excludedPaths>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>

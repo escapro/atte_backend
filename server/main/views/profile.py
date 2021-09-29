@@ -2,6 +2,7 @@ from crm.permissions import isClientUser
 from crm.utils.common import getUserClientInfo
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from crm.utils.common import getUserClientInfo
 
 
 class ProfileView(APIView):

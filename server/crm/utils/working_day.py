@@ -6,12 +6,13 @@ from django.db.models.aggregates import Sum
 from crm.models import Shift, WorkingDay
 import datetime
 
+
 def get_last_working_day() -> Optional[WorkingDay]:
     """
     Возвращает последнюю смену
     """
-
     return WorkingDay.objects.all().order_by('date').last()
+
 
 def get_active_working_day(create: bool = False) -> Optional[WorkingDay]:
     """
@@ -19,7 +20,6 @@ def get_active_working_day(create: bool = False) -> Optional[WorkingDay]:
 
     :param bool create: Создавать новую смену, при отсутствии
     """
-
     working_day = None
 
     last_working_day = get_last_working_day()
@@ -45,17 +45,22 @@ def calculate_wd_income(working_day: WorkingDay = None) -> Optional[dict]:
 
     wd = working_day if working_day else get_active_working_day()
     if not wd:
+        debug("error", '1')
         return None
 
     shifts = Shift.objects.filter(working_day=wd)
 
     if not shifts:
+        debug("error", '2')
         return None
 
     cash_income = shifts.aggregate(Sum('cash_income'))
     noncash_income = shifts.aggregate(Sum('noncash_income'))
 
-    if not cash_income['cash_income__sum'] or not noncash_income['noncash_income__sum']:
+    if cash_income['cash_income__sum'] is None or noncash_income['noncash_income__sum'] is None:
+        debug("cash_income['cash_income__sum']", cash_income['cash_income__sum'])
+        debug("noncash_income['noncash_income__sum']", noncash_income['noncash_income__sum'])
+        debug("error", '3')
         return None
 
     return {
@@ -64,10 +69,9 @@ def calculate_wd_income(working_day: WorkingDay = None) -> Optional[dict]:
         "total_income": cash_income['cash_income__sum'] + noncash_income['noncash_income__sum']
     }
 
+
 def get_wds_pagination_data(active_month):
-    result = {}
-    
-    result['months'] = []
+    result = {'months': []}
 
     MonthL = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль', 'Август','Сентябрь','Октябрь','Ноябрь', 'Декабрь']
 
@@ -80,7 +84,7 @@ def get_wds_pagination_data(active_month):
             "from_date": "{}-{}-{}".format(wd['date__year'], format_with_zero(wd['date__month']), '01'),
             "to_date": "{}-{}-{}".format(wd['date__year'], format_with_zero(wd['date__month']+1 if wd['date__month']<12 else 1), '01')
         }
-        
+
         if not month_name in result['months']:
             result['months'].append({
                 "name": month_name,
