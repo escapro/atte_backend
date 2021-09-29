@@ -1,0 +1,4 @@
+/env
+/server/static
+__pycache__/
+*.py[cod]
