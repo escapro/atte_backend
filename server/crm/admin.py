@@ -10,6 +10,10 @@ admin.site.register(Cashbox)
 admin.site.register(Bonuses)
 admin.site.register(AdditionalExpenseCategory)
 admin.site.register(AdditionalExpense)
+admin.site.register(WorkingTime)
+admin.site.register(ShiftPayrollPeriod)
+admin.site.register(ShiftPayroll)
+
 
 @admin.register(WorkingDay)
 class WorkingDay(admin.ModelAdmin):
@@ -18,6 +22,7 @@ class WorkingDay(admin.ModelAdmin):
         'noncash_income',
         'total_income',
     ]
+
 
 @admin.register(Shift)
 class Shift(admin.ModelAdmin):

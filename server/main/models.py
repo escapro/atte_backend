@@ -2,10 +2,12 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.fields import BigIntegerField
 from django_tenants.models import TenantMixin, DomainMixin
+from django.contrib.postgres.fields import ArrayField
+
 
 class Client(TenantMixin):
     name = models.CharField(max_length=100)
-    paid_until =  models.DateField()
+    paid_until = models.DateField()
 
     shift_start_time = models.TimeField(default='09:00:00', blank=False)
     permissible_cash_difference_plus = BigIntegerField(default=0, blank=False)
@@ -20,8 +22,10 @@ class Client(TenantMixin):
     def __str__(self):
         return self.schema_name
 
+
 class Domain(DomainMixin):
     pass
+
 
 class Admin(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -35,12 +39,14 @@ class Admin(models.Model):
     # def getTags(self):
     #     return self.client.values_list()
 
+
 class Manager(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     client = models.ManyToManyField(Client,)
     
     def __str__(self):
         return "user: {}, client: {}".format(self.user, self.client)
+
 
 class Employee(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)

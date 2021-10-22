@@ -51,7 +51,7 @@ def check_working_day_for_completness(working_day):
         working_day.save()
 
 
-def debug(title: str, text: str):
+def debug(title: str, text):
     print()
     print("{}: {}".format(title, text))
     print()

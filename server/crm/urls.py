@@ -3,6 +3,7 @@ from crm.views.additional_expense import AdditionalExpenseView, CreateAdditional
 from crm.views.bonuse import BonuseView, CreateBonuseView
 from crm.views.accounting import AccountingView
 from crm.views.cashbox import CashboxView
+from crm.views.payroll import PayrollView
 from crm.views.working_day import CloseWdView
 from crm.views.shift_type import CreateShiftTypeView, ShiftTypeView
 from crm.views.shift import ActiveShiftView, CheckShiftView, CloseShiftView, OpenShiftView
@@ -11,7 +12,6 @@ from crm.views.expense_category import CreateExpenseCategoryView, ExpenseCategor
 from crm.views.admin import AdminView
 from crm.views.employee import CreateEmployeeView, EmployeeView
 from main.views.client import ClientView, UpdateClientView
-from main.views.profile import ProfileView
 from main.views.profile import ProfileView
 from main.views.user import Logout
 from django.urls import path
@@ -69,5 +69,7 @@ urlpatterns = [
 
     path('additional_expense_categories/', AdditionalExpenseCategoryView.as_view()),
     # path('additional_expense/new/', CreateExpenseCategoryView.as_view()),
+
+    path('payrolls/', PayrollView.as_view()),
     
 ]

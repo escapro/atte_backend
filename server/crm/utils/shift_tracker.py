@@ -4,6 +4,7 @@ from typing import Optional
 import datetime
 import math
 
+
 def is_permissible_traker_action(current_action: int, last_action: int) -> bool:
     """
     Определяет, разрашено ли указанное действие
@@ -32,7 +33,7 @@ def is_permissible_traker_action(current_action: int, last_action: int) -> bool:
 
 def calculate_shift_trackers(shift_trackers: QuerySet) -> Optional[dict]:
     """
-    Подсчитывает рабочее время, перерывное время и текущее действие (START, PAUSE, RESUME, STOP) в смене
+    Подсчитывает рабочее время, перерывное время и текущее действие (START, PAUSE, RESUME, STOP) в смене (в секундах)
     
     :param QuerySet shift_trackers: Объект трекеров, которые нужно подсчитать
     """
@@ -68,7 +69,7 @@ def calculate_shift_trackers(shift_trackers: QuerySet) -> Optional[dict]:
             next_index = index + 1
             if next_index < len(shift_trackers):
                 next_tracker = shift_trackers[next_index]
-                # PAUSE -> RESUME                                                                                                                                                                                                              -> RESUME
+                # PAUSE -> RESUME                                                                                                                                                                                                            -> RESUME
                 if next_tracker['action'] == ShiftTraker.RESUME:
                     data['break_time'] += math.ceil((next_tracker['datetime'] - tracker['datetime']).total_seconds())
                 # PAUSE -> STOP

@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db.models.fields import TextField
 from main.models import Employee
 from django.db import models
@@ -62,8 +63,16 @@ class Shift(models.Model):
         return '{}, {}, {}, {}'.format(self.working_day.date, self.shift_type.name, self.employee.user.username, self.finished)
 
 
-class ShiftTraker(models.Model):
+class WorkingTime(models.Model):
+    shift = models.ForeignKey(Shift, on_delete=models.CASCADE)
+    work_time = models.BigIntegerField(default=None, null=True)
+    break_time = models.BigIntegerField(default=None, null=True)
 
+    def __str__(self):
+        return '{}'.format(self.shift)
+
+
+class ShiftTraker(models.Model):
     START = 1
     PAUSE = 2
     RESUME = 3
@@ -76,7 +85,7 @@ class ShiftTraker(models.Model):
         (STOP, 'STOP'),
     ]
 
-    shift = models.ForeignKey(Shift, on_delete=models.CASCADE)
+    working_time = models.ForeignKey(WorkingTime, null=False, default=None, on_delete=models.CASCADE)
     action = models.IntegerField(choices=ACTIONS)
     datetime = models.DateTimeField()
 
@@ -85,7 +94,7 @@ class ShiftTraker(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return '{}, {}, {}'.format(self.shift, self.get_action_display(), self.datetime)
+        return '{}, {}, {}'.format(self.working_time, self.get_action_display(), self.datetime)
 
 
 class ExpenseCategory(models.Model):
@@ -115,11 +124,13 @@ class Expense(models.Model):
 
 
 class Bonuses(models.Model):
+    shift_type = models.ForeignKey(ShiftType, null=False, default=None, on_delete=models.CASCADE)
     revenue_to = models.BigIntegerField(null=False)
     rate = models.IntegerField(unique=False)
 
     def __str__(self):
         return '{} - {}%'.format(self.revenue_to, self.rate)
+
 
 class AdditionalExpenseCategory(models.Model):
     name = models.CharField(max_length=500, unique=True)
@@ -136,7 +147,7 @@ class AdditionalExpense(models.Model):
     additional_expense_category = models.ForeignKey(AdditionalExpenseCategory, null=True, default=None, on_delete=models.CASCADE, blank=True)
     name = models.TextField(max_length=500, null=True, blank=True)
     calculation_formula = models.TextField(null=True, default=None, blank=True)
-    sum = models.IntegerField(null=True, blank=True)
+    sum = models.BigIntegerField(null=True, blank=True)
     created_at_time = models.TimeField(auto_created=True, auto_now_add=True, null=True)
 
     def save(self, *args, **kwargs):
@@ -148,3 +159,30 @@ class AdditionalExpense(models.Model):
 
     def __str__(self):
         return '{}'.format(self.date)
+
+
+class ShiftPayrollPeriod(models.Model):
+    day = models.TextField(max_length=5)
+    is_active = models.BooleanField(default=True)
+
+    def save(self, *args, **kwargs):
+        value = self.day
+        if value.isnumeric():
+            value = int(value)
+            if not value >= 1 and not value <= 28:
+                raise ValueError("Недопустимое значение для даты. Выберите диапазон от 1 до 31")
+        else:
+            if value != 'end':
+                print(value == 'end')
+                raise ValueError("Недопустимое значение для даты. Выберите значение 'end'")
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return '{}'.format(self.day)
+
+
+class ShiftPayroll(models.Model):
+    shift = models.ForeignKey(Shift, null=False, default=None, on_delete=models.CASCADE)
+    period = models.ForeignKey(ShiftPayrollPeriod, null=False, default=None, on_delete=models.CASCADE)
+    from_shift = models.DecimalField(default=0, max_digits=12, decimal_places=2)
+    from_interest = models.DecimalField(default=0, max_digits=12, decimal_places=2)
