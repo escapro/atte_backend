@@ -2,7 +2,7 @@ from django.db.models import Sum
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from crm.models import ShiftPayrollPeriod, ShiftPayroll
+from crm.models import ShiftPayrollPeriod, ShiftPayroll, PaidSalaries
 from crm.permissions import isAdminManager, isClientUser
 from crm.serializers.shift_payroll_period import ShiftPayrollPeriodSerializer
 from crm.utils.common import debug
@@ -14,31 +14,37 @@ from main.serializers.employee import EmployeeSerializerOnlyUser
 def get_periods_data(employee, periods, month, year):
     result = {}
 
-    for period in periods:
+    for index, period in enumerate(periods):
+        key_name = format_payroll_period(period.day, int(month), int(year))
+        past_period_day = format_payroll_period(periods[index-1].day, int(month), int(year)) if index > 0 else 0
+
         payroll = ShiftPayroll.objects.filter(shift__employee=employee,
                                               period=period,
                                               shift__working_day__date__month=month,
                                               shift__working_day__date__year=year)
-        
-        key_name = format_payroll_period(period.day, int(month), int(year))
+
+        paid_salary = PaidSalaries.objects.filter(employee=employee,
+                                                  date__day__gte=past_period_day,
+                                                  date__day__lte=key_name,
+                                                  date__month=month,
+                                                  date__year=year)
+
+        from_shift = payroll.values("from_shift").aggregate(sum=Sum('from_shift'))['sum'] if payroll.exists() else 0
+        from_interest = payroll.values("from_interest").aggregate(sum=Sum('from_interest'))['sum'] if payroll.exists() else 0
+        paid_salary_sum = paid_salary.values("sum").aggregate(sum=Sum('sum'))['sum'] if paid_salary.exists() else 0
 
         result[key_name] = {
-            "from_shift": payroll.values("from_shift").aggregate(sum=Sum('from_shift'))['sum'] if payroll.exists() else 0,
-            "from_interest": payroll.values("from_interest").aggregate(sum=Sum('from_interest'))['sum'] if payroll.exists() else 0,
+            "from_shift": from_shift,
+            "from_interest": from_interest,
+            "summary": from_shift + from_interest,
+            "paid_salary": paid_salary_sum
         }
-
-        # if payroll.exists():
-        #     result[key_name]['from_shift'] = payroll.values("from_shift").aggregate(sum=Sum('from_shift'))['sum']
-        # else:
-        #     result[key_name]['from_shift'] = 0
 
     return result
 
 
 def get_headers_data(payroll_dates, month, year):
     result = []
-
-    debug('payroll_dates', payroll_dates)
 
     for period in payroll_dates:
         date = '{}.{}.{}'.format(format_payroll_period(period.day, int(month), int(year)), month, year)
@@ -76,9 +82,16 @@ class PayrollView(APIView):
         payrolls = []
 
         for employee in employees:
+            periods_data = get_periods_data(employee, payroll_dates, params['date_month'], params['date_year'])
+            total = 0
+
+            for index, period in enumerate(periods_data):
+                total = total + periods_data[period]['summary']
+
             payrolls.append({
                 'employee': employee.user.first_name,
-                'periods': get_periods_data(employee, payroll_dates, params['date_month'], params['date_year'])
+                'total': total,
+                'periods': periods_data,
             })
 
         result = {

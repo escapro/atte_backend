@@ -3,6 +3,7 @@ from crm.views.additional_expense import AdditionalExpenseView, CreateAdditional
 from crm.views.bonuse import BonuseView, CreateBonuseView
 from crm.views.accounting import AccountingView
 from crm.views.cashbox import CashboxView
+from crm.views.paid_salary import PaidSalaryView, CreatePaidSalaryView
 from crm.views.payroll import PayrollView
 from crm.views.working_day import CloseWdView
 from crm.views.shift_type import CreateShiftTypeView, ShiftTypeView
@@ -71,5 +72,8 @@ urlpatterns = [
     # path('additional_expense/new/', CreateExpenseCategoryView.as_view()),
 
     path('payrolls/', PayrollView.as_view()),
+
+    path('paid_salaries/', PaidSalaryView.as_view()),
+    path('paid_salary/new/', CreatePaidSalaryView.as_view()),
     
 ]

@@ -13,6 +13,7 @@ admin.site.register(AdditionalExpense)
 admin.site.register(WorkingTime)
 admin.site.register(ShiftPayrollPeriod)
 admin.site.register(ShiftPayroll)
+admin.site.register(PaidSalaries)
 
 
 @admin.register(WorkingDay)

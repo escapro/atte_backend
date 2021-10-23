@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db.models.fields import TextField
 from main.models import Employee
@@ -186,3 +188,11 @@ class ShiftPayroll(models.Model):
     period = models.ForeignKey(ShiftPayrollPeriod, null=False, default=None, on_delete=models.CASCADE)
     from_shift = models.DecimalField(default=0, max_digits=12, decimal_places=2)
     from_interest = models.DecimalField(default=0, max_digits=12, decimal_places=2)
+
+
+class PaidSalaries(models.Model):
+    employee = models.ForeignKey(Employee, null=False, default=None, on_delete=models.CASCADE)
+    date = models.DateField(default=None, null=None)
+    time = models.TimeField(default=datetime.now, blank=True)
+    sum = models.DecimalField(default=0, max_digits=12, decimal_places=2)
+    comment = models.TextField(max_length=500, null=True, blank=True)
