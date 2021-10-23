@@ -259,7 +259,7 @@ class AccountingView(APIView):
         result['summary']['expense'] = 0
 
         if not working_days:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Рабочие дни не найдены"}, status=status.HTTP_400_BAD_REQUEST)
 
         start_date = working_days.first().date
         end_date = working_days.last().date

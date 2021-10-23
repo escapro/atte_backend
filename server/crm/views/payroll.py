@@ -16,8 +16,10 @@ def get_periods_data(employee, periods, month, year):
 
     for index, period in enumerate(periods):
         key_name = format_payroll_period(period.day, int(month), int(year))
+        
         past_period_day = format_payroll_period(periods[index-1].day, int(month), int(year)) if index > 0 else 0
-
+        past_period_day += 1 if index != 0 else 0
+        
         payroll = ShiftPayroll.objects.filter(shift__employee=employee,
                                               period=period,
                                               shift__working_day__date__month=month,
