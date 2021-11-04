@@ -41,7 +41,7 @@ class CreateEmployeeView(APIView):
         new_user_serializer = UserCreateSerializer(data=request.data)
         
         if not new_user_serializer.is_valid():
-            return Response({"error_fields":new_user_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error_fields": new_user_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         new_user_serializer.save()
 
