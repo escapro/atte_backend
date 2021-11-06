@@ -29,7 +29,6 @@ class EmployeeView(APIView):
             employee = Employee.objects.filter(client__name=subdomain)
             serializer_class = EmployeeSerializer(employee, many=True)
 
-
         return Response(serializer_class.data)
 
 
@@ -38,15 +37,22 @@ class CreateEmployeeView(APIView):
     permission_classes = (isClientUser, isAdminManager)
 
     def post(self, request, format=None):
-        new_user_serializer = UserCreateSerializer(data=request.data)
-        
-        if not new_user_serializer.is_valid():
-            return Response({"error_fields": new_user_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        # new_user_serializer = UserCreateSerializer(data=request.data)
+        #
+        # if not new_user_serializer.is_valid():
+        #     return Response({"error_fields": new_user_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        #
+        # new_user_serializer.save()
+        #
+        # created_user = User.objects.get(id=new_user_serializer.data['id'])
 
-        new_user_serializer.save()
+        created_user = User.objects.create_user(
+            username=request.data['username'],
+            first_name=request.data['first_name'],
+            last_name=request.data['last_name'],
+            password=request.data['password'],
+        )
 
-        created_user = User.objects.get(id=new_user_serializer.data['id'])
-        
         new_employee_data = {}
         new_employee_data['user'] = created_user.id
         new_employee_data['client'] = request.tenant.id
@@ -54,7 +60,7 @@ class CreateEmployeeView(APIView):
         new_employee_serializer = EmployeeCreateSerializer(data=new_employee_data)
 
         if not new_employee_serializer.is_valid():
-            return Response({"error_fields":new_employee_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error_fields": new_employee_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         new_employee_serializer.save()
 

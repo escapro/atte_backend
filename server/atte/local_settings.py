@@ -6,6 +6,8 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     'cyborg.127.0.0.1',
     'cafe.127.0.0.1',
+    'attedev',
+    'cyborg.attedev',
     'http://localhost:3000',
     'http://cyborg.localhost:3000',
     'http://cafe.localhost:3000'

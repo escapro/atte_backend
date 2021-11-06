@@ -179,6 +179,7 @@ def get_additional_expenses_data(params, variables):
 
     return result
 
+
 def apply_filters_by_params(object, params):
     wds = object
 
@@ -187,6 +188,7 @@ def apply_filters_by_params(object, params):
     wds = wds.filter(date__range=date__range)
 
     return wds
+
 
 def add_non_work_days_data(data, params):
     result = data
@@ -256,113 +258,115 @@ class AccountingView(APIView):
         result['headers']['shift_types'] = ShiftType.objects.all().values()
 
         result['summary']['income'] = working_days.values("total_income").aggregate(sum=Sum('total_income'))['sum']
+        result['summary']['income'] = 0 if not result['summary']['income'] else result['summary']['income']
+
         result['summary']['expense'] = 0
 
-        if not working_days:
-            return Response({"error": "Рабочие дни не найдены"}, status=status.HTTP_400_BAD_REQUEST)
+        if working_days:
+            start_date = working_days.first().date
+            end_date = working_days.last().date
 
-        start_date = working_days.first().date
-        end_date = working_days.last().date
+            cashboxes = Cashbox.objects.all()
+            shift_types = ShiftType.objects.all()
 
-        cashboxes = Cashbox.objects.all()
-        shift_types = ShiftType.objects.all()
+            # Sample.objects.filter(date__range=["2011-01-01", "2011-01-31"])
+            while start_date <= end_date:
+                wd = WorkingDay.objects.filter(date=start_date)
 
-        # Sample.objects.filter(date__range=["2011-01-01", "2011-01-31"])
-        while start_date <= end_date:
-            wd = WorkingDay.objects.filter(date=start_date)
+                if wd:
+                    wd = wd[0]
 
-            if wd:
-                wd = wd[0]
+                    wd_shifts = Shift.objects.filter(working_day=wd)
+                    wd_expenses = Expense.objects.filter(working_day=wd, expense_category__is_accounting_expense=True)
+                    expenses_category = ExpenseCategory.objects.all()
 
-                wd_shifts = Shift.objects.filter(working_day=wd)
-                wd_expenses = Expense.objects.filter(working_day=wd, expense_category__is_accounting_expense=True)
-                expenses_category = ExpenseCategory.objects.all()
+                    wd_expenses_sum = wd_expenses.values('sum').aggregate(sum=Sum('sum'))['sum']
 
-                wd_expenses_sum = wd_expenses.values('sum').aggregate(sum=Sum('sum'))['sum']
+                    if wd_expenses_sum is not None:
+                        result['summary']['expense'] += wd_expenses_sum
 
-                if wd_expenses_sum is not None:
-                    result['summary']['expense'] += wd_expenses_sum
+                    data = {}
 
-                data = {}
+                    DayL = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']
 
-                DayL = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']
+                    #is_work_day
+                    data['is_work_day'] = True
 
-                #is_work_day
-                data['is_work_day'] = True
+                    # date
+                    data['date'] = {}
+                    data['date']['week'] = DayL[wd.date.weekday()]
+                    data['date']['day'] = wd.date.day
+                    data['date']['month'] = wd.date.month
+                    data['date']['year'] = wd.date.year
 
-                # date
-                data['date'] = {}
-                data['date']['week'] = DayL[wd.date.weekday()]
-                data['date']['day'] = wd.date.day
-                data['date']['month'] = wd.date.month
-                data['date']['year'] = wd.date.year
+                    # cash_income
+                    data['cash_income'] = wd.cash_income
 
-                # cash_income
-                data['cash_income'] = wd.cash_income
+                    # noncash_income
+                    data['noncash_income'] = wd.noncash_income
 
-                # noncash_income
-                data['noncash_income'] = wd.noncash_income
+                    # total_income
+                    data['total_income'] = wd.total_income
 
-                # total_income
-                data['total_income'] = wd.total_income
+                    # cash_income
+                    data['cash_income'] = wd.cash_income
 
-                # cash_income
-                data['cash_income'] = wd.cash_income
+                    # total_expenses
+                    data['total_expenses'] = 0
+                    if wd_expenses_sum is not None:
+                        data['total_expenses'] += wd_expenses_sum
 
-                # total_expenses
-                data['total_expenses'] = 0
-                if wd_expenses_sum is not None:
-                    data['total_expenses'] += wd_expenses_sum
+                    # expenses
+                    data['expenses'] = generate_expenses_data(wd_expenses, expenses_category)
 
-                # expenses
-                data['expenses'] = generate_expenses_data(wd_expenses, expenses_category)
+                    # cashboxes
+                    data['cashboxes'] = {}
+                    for cashbox in cashboxes:
+                        cashbox_shifts = wd_shifts.filter(cashbox=cashbox.id)
+                        cashbox_expenses = wd_expenses.filter(cashbox=cashbox.id)
 
-                # cashboxes
-                data['cashboxes'] = {}
-                for cashbox in cashboxes:
-                    cashbox_shifts = wd_shifts.filter(cashbox=cashbox.id)
-                    cashbox_expenses = wd_expenses.filter(cashbox=cashbox.id)
+                        cashbox_cash_income_sum = 0
+                        cashbox_noncash_income_sum = 0
+                        cashbox_total_income_sum = 0
+                        cashbox_cash_refund_sum = 0
+                        cashbox_total_expenses_sum = 0
 
-                    cashbox_cash_income_sum = 0
-                    cashbox_noncash_income_sum = 0
-                    cashbox_total_income_sum = 0
-                    cashbox_cash_refund_sum = 0
-                    cashbox_total_expenses_sum = 0
+                        cashbox_cash_income = cashbox_shifts.values("cash_income").aggregate(sum=Sum('cash_income'))['sum']
+                        cashbox_noncash_income = cashbox_shifts.values("noncash_income").aggregate(sum=Sum('noncash_income'))['sum']
+                        cashbox_total_income = cashbox_shifts.values("shift_income").aggregate(sum=Sum('shift_income'))['sum']
+                        cashbox_cash_refund = cashbox_shifts.values("cash_refund").aggregate(sum=Sum('cash_refund'))['sum']
+                        cashbox_total_expenses = cashbox_expenses.values("sum").aggregate(sum=Sum('sum'))['sum']
 
-                    cashbox_cash_income = cashbox_shifts.values("cash_income").aggregate(sum=Sum('cash_income'))['sum']
-                    cashbox_noncash_income = cashbox_shifts.values("noncash_income").aggregate(sum=Sum('noncash_income'))['sum']
-                    cashbox_total_income = cashbox_shifts.values("shift_income").aggregate(sum=Sum('shift_income'))['sum']
-                    cashbox_cash_refund = cashbox_shifts.values("cash_refund").aggregate(sum=Sum('cash_refund'))['sum']
-                    cashbox_total_expenses = cashbox_expenses.values("sum").aggregate(sum=Sum('sum'))['sum']
+                        if cashbox_total_expenses:
+                            cashbox_total_expenses_sum = cashbox_total_expenses
+                        if cashbox_cash_income:
+                            cashbox_cash_income_sum = cashbox_cash_income
+                        if cashbox_noncash_income:
+                            cashbox_noncash_income_sum = cashbox_noncash_income
+                        if cashbox_total_income:
+                            cashbox_total_income_sum = cashbox_total_income
+                        if cashbox_cash_refund:
+                            cashbox_cash_refund_sum = cashbox_cash_refund
 
-                    if cashbox_total_expenses:
-                        cashbox_total_expenses_sum = cashbox_total_expenses
-                    if cashbox_cash_income:
-                        cashbox_cash_income_sum = cashbox_cash_income
-                    if cashbox_noncash_income:
-                        cashbox_noncash_income_sum = cashbox_noncash_income
-                    if cashbox_total_income:
-                        cashbox_total_income_sum = cashbox_total_income
-                    if cashbox_cash_refund:
-                        cashbox_cash_refund_sum = cashbox_cash_refund
+                        data['cashboxes'][cashbox.id] = {}
+                        data['cashboxes'][cashbox.id]['id'] = cashbox.id
+                        data['cashboxes'][cashbox.id]['name'] = cashbox.name
+                        data['cashboxes'][cashbox.id]['cash_income'] = cashbox_cash_income_sum
+                        data['cashboxes'][cashbox.id]['noncash_income'] = cashbox_noncash_income_sum
+                        data['cashboxes'][cashbox.id]['total_income'] = cashbox_total_income_sum
+                        data['cashboxes'][cashbox.id]['cash_refund'] = cashbox_cash_refund_sum
+                        data['cashboxes'][cashbox.id]['total_expenses'] = cashbox_total_expenses_sum
 
-                    data['cashboxes'][cashbox.id] = {}
-                    data['cashboxes'][cashbox.id]['id'] = cashbox.id
-                    data['cashboxes'][cashbox.id]['name'] = cashbox.name
-                    data['cashboxes'][cashbox.id]['cash_income'] = cashbox_cash_income_sum
-                    data['cashboxes'][cashbox.id]['noncash_income'] = cashbox_noncash_income_sum
-                    data['cashboxes'][cashbox.id]['total_income'] = cashbox_total_income_sum
-                    data['cashboxes'][cashbox.id]['cash_refund'] = cashbox_cash_refund_sum
-                    data['cashboxes'][cashbox.id]['total_expenses'] = cashbox_total_expenses_sum
+                        #cashbox expenses
+                        data['cashboxes'][cashbox.id]['expenses'] = generate_expenses_data(cashbox_expenses, expenses_category)
 
-                    #cashbox expenses
-                    data['cashboxes'][cashbox.id]['expenses'] = generate_expenses_data(cashbox_expenses, expenses_category)
+                        data['cashboxes'][cashbox.id]['shifts'] = generate_shift_data(cashbox_shifts, shift_types)
 
-                    data['cashboxes'][cashbox.id]['shifts'] = generate_shift_data(cashbox_shifts, shift_types)
+                    result['detail'].append(data)
 
-                result['detail'].append(data)
-
-            start_date += timedelta(days=1)
+                start_date += timedelta(days=1)
+        else:
+            result['error'] = 'Рабочие дни не найдены'
 
         # result['detail'] = add_non_work_days_data(result['detail'], params)
 
