@@ -244,6 +244,7 @@ class AccountingView(APIView):
 
         result['options'] = {}
         result['headers'] = {}
+        result['cashboxes'] = Cashbox.objects.filter(is_active=True).values()
         result['detail'] = []
         result['summary'] = {}
         result['expenses'] = {}
