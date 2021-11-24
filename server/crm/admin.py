@@ -14,6 +14,8 @@ admin.site.register(WorkingTime)
 admin.site.register(ShiftPayrollPeriod)
 admin.site.register(ShiftPayroll)
 admin.site.register(PaidSalaries)
+admin.site.register(DailyShiftSchedule)
+admin.site.register(WishesDailyShift)
 
 
 @admin.register(WorkingDay)

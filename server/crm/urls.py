@@ -3,8 +3,10 @@ from crm.views.additional_expense import AdditionalExpenseView, CreateAdditional
 from crm.views.bonuse import BonuseView, CreateBonuseView
 from crm.views.accounting import AccountingView
 from crm.views.cashbox import CashboxView
+from crm.views.daily_shift_schedule import DailyShiftScheduleView
 from crm.views.paid_salary import PaidSalaryView, CreatePaidSalaryView
 from crm.views.payroll import PayrollView
+from crm.views.wishes_daily_shift import WishesDailyShiftView
 from crm.views.working_day import CloseWdView
 from crm.views.shift_type import CreateShiftTypeView, ShiftTypeView
 from crm.views.shift import ActiveShiftView, CheckShiftView, CloseShiftView, OpenShiftView
@@ -75,5 +77,8 @@ urlpatterns = [
 
     path('paid_salaries/', PaidSalaryView.as_view()),
     path('paid_salary/new/', CreatePaidSalaryView.as_view()),
+
+    path('daily_shift_schedule/', DailyShiftScheduleView.as_view()),
+    path('wishes_daily_shift/', WishesDailyShiftView.as_view()),
     
 ]

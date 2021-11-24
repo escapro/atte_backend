@@ -196,3 +196,15 @@ class PaidSalaries(models.Model):
     time = models.TimeField(default=datetime.now, blank=True)
     sum = models.DecimalField(default=0, max_digits=12, decimal_places=2)
     comment = models.TextField(max_length=500, null=True, blank=True)
+
+
+class DailyShiftSchedule(models.Model):
+    employee = models.ForeignKey(Employee, null=False, default=None, on_delete=models.CASCADE)
+    shift_type = models.ForeignKey(ShiftType, null=False, default=None, on_delete=models.CASCADE)
+    date = models.DateField(default=None, null=False)
+
+
+class WishesDailyShift(models.Model):
+    employee = models.ForeignKey(Employee, null=False, default=None, on_delete=models.CASCADE)
+    shift_type = models.ForeignKey(ShiftType, null=False, default=None, on_delete=models.CASCADE)
+    date = models.DateField(default=None, null=False)
